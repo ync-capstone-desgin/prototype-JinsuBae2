@@ -20,3 +20,124 @@ html, body, #root {
 .row-inactive {
   color: #9ca3af;
 }
+
+/* 만료 캘린더: 날짜 칸 안의 만료 항목. 왼쪽 색 띠가 긴급도(D-day 배지와 같은 색)를 나타낸다. */
+.expiry-calendar .ant-picker-calendar-date-content {
+  height: 78px !important;
+}
+.expiry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.expiry-chip {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 4px;
+  border-left: 3px solid;
+  background: #f6f7f8;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.expiry-more {
+  font-size: 11px;
+  color: #6b7280;
+  padding-left: 4px;
+}
+.expiry-cell-today {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f6b3a;
+}
+/* 선택한 날짜의 만료 목록 패널 */
+.expiry-day-panel {
+  width: 380px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+}
+.expiry-day-item {
+  padding: 10px 12px;
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+}
+/* 창이 좁으면 목록 패널을 달력 아래로 내린다. */
+@media (max-width: 1100px) {
+  .expiry-calendar-layout {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .expiry-day-panel {
+    width: auto;
+    position: static;
+  }
+}
+/* 선택한 날짜 칸: 기본 회색 배경 대신 연한 초록으로 칸 안 글자가 잘 보이게 한다. */
+.expiry-calendar .ant-picker-cell-selected .ant-picker-calendar-date {
+  background: #eef6ef !important;
+  border-top-color: #2f6b3a !important;
+}
+
+/* 갱신 현황판: 처리상태별 칸 4개를 가로로 놓고, 칸마다 세로로 스크롤한다. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+}
+.board-column {
+  background: #eef1ef;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  max-height: calc(100vh - 210px);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+/* 카드를 끌고 와서 놓을 수 있는 칸 */
+.board-column-over {
+  background: #e3efe5;
+  box-shadow: inset 0 0 0 2px #2f6b3a;
+}
+.board-column-head {
+  padding: 10px 12px 8px;
+  border-top: 3px solid;
+  border-radius: 10px 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.board-column-body {
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.board-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.board-card-draggable {
+  cursor: grab;
+}
+.board-card-draggable:hover {
+  border-color: #2f6b3a;
+}
+/* 끌고 있는 카드의 원래 자리는 흐리게 남긴다. */
+.board-card-dragging {
+  opacity: 0.4;
+}
+.board-card-name {
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,0 +1,18 @@
+# 서버용 웹서버 설정. SITE_ADDRESS(도메인)로 HTTPS 인증서를 자동 발급한다.
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# API 요청은 백엔드로 넘긴다. 실시간 알림(SSE)이 바로 전달되도록 버퍼링하지 않는다.
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+		}
+	}
+
+	# 그 밖의 주소는 화면 파일을 보여준다. 화면 내부 경로(/suppliers/3 등)는 index.html로 보낸다.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

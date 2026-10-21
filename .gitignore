@@ -16,3 +16,4 @@ backend/out/
 # Frontend (Node)
 frontend/node_modules/
 frontend/dist/
+.env.prod

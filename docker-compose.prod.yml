@@ -1,0 +1,62 @@
+# 서버(체험용) 배포 구성. 실행: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# 외부에는 웹서버(80·443)만 열고, DB·백엔드·메일함은 내부 네트워크에서만 접근한다.
+name: supplier-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # 알림 메일을 실제로 보내지 않고 받아 두는 메일함 (외부에 열지 않음). 실제 발송은 deploy-aws.md 참고.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      # 체험용: 가상 샘플 데이터와 시연 도구(기준일 변경·즉시 점검)를 켠다.
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SEED_PASSWORD: ${SEED_PASSWORD}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      WEB_URL: https://${SITE_ADDRESS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

@@ -34,6 +34,9 @@ public class ExpiryService {
             Comparator.comparing(ExpiryItem::daysLeft, Comparator.nullsLast(Comparator.naturalOrder()))
                     .thenComparing(ExpiryItem::supplierName);
 
+    /** 갱신 현황판의 완료 칸에 보여줄 최근 갱신 건의 범위(만료일 기준, 오늘로부터 며칠 전까지) */
+    static final int RECENT_RENEWED_DAYS = 30;
+
     private final ContractRepository contracts;
     private final CertificationRepository certifications;
     private final ExpiryPolicy policy;
@@ -66,6 +69,54 @@ public class ExpiryService {
             if (withCerts) {
                 certifications.findExpiring(from, until, ownerId, renewalStatus).forEach(x -> result.add(toItem(x)));
             }
+        }
+        result.sort(URGENT_FIRST);
+        return result;
+    }
+
+    /**
+     * 만료일이 기간 [from, until] 안에 있는 유효 계약·인증을 날짜순으로 찾는다. (만료 캘린더용)
+     * 이미 지난 날짜도 포함하므로, 갱신하지 않고 만료된 건도 그날 칸에 남아 보인다.
+     *
+     * @param from          시작일 (포함)
+     * @param until         종료일 (포함)
+     * @param targetType    대상 종류 (null이면 계약·인증 모두)
+     * @param ownerId       내부 담당자 (null이면 전체)
+     * @param renewalStatus 갱신 처리상태 (null이면 전체)
+     */
+    public List<ExpiryItem> findBetween(LocalDate from, LocalDate until, TargetType targetType, Long ownerId,
+                                        RenewalStatus renewalStatus) {
+        List<ExpiryItem> result = new ArrayList<>();
+        if (targetType == null || targetType == TargetType.CONTRACT) {
+            contracts.findEnding(from, until, ownerId, renewalStatus).forEach(c -> result.add(toItem(c)));
+        }
+        if (targetType == null || targetType == TargetType.CERTIFICATION) {
+            certifications.findExpiring(from, until, ownerId, renewalStatus).forEach(x -> result.add(toItem(x)));
+        }
+        result.sort(Comparator.comparing(ExpiryItem::expiryDate).thenComparing(ExpiryItem::supplierName));
+        return result;
+    }
+
+    /**
+     * 갱신 현황판에 올릴 카드를 찾는다.
+     * 조치 대상(이미 만료 + 만료예정 기간 이내)인 유효 계약·인증과,
+     * 최근 갱신되어 이력이 된 건(만료일이 최근 {@value #RECENT_RENEWED_DAYS}일 ~ 만료예정 기간 안)을 함께 돌려준다.
+     * 화면은 각 카드의 갱신 처리상태로 칸을 나눈다.
+     *
+     * @param targetType 대상 종류 (null이면 계약·인증 모두)
+     * @param ownerId    내부 담당자 (null이면 전체)
+     */
+    public List<ExpiryItem> findBoard(TargetType targetType, Long ownerId) {
+        LocalDate until = policy.horizon();
+        LocalDate renewedFrom = policy.today().minusDays(RECENT_RENEWED_DAYS);
+        List<ExpiryItem> result = new ArrayList<>();
+        if (targetType == null || targetType == TargetType.CONTRACT) {
+            contracts.findEnding(MIN_DATE, until, ownerId, null).forEach(c -> result.add(toItem(c)));
+            contracts.findRenewed(renewedFrom, until, ownerId).forEach(c -> result.add(toItem(c)));
+        }
+        if (targetType == null || targetType == TargetType.CERTIFICATION) {
+            certifications.findExpiring(MIN_DATE, until, ownerId, null).forEach(x -> result.add(toItem(x)));
+            certifications.findRenewed(renewedFrom, until, ownerId).forEach(x -> result.add(toItem(x)));
         }
         result.sort(URGENT_FIRST);
         return result;

@@ -78,10 +78,19 @@ public class CertificationService {
         return new Saved(toItem(x), warnings);
     }
 
-    /** 갱신 처리상태(미착수·갱신진행·갱신완료·갱신안함)를 바꾼다. 갱신완료·갱신안함이면 관련 알림을 닫도록 이벤트를 보낸다. */
+    /**
+     * 갱신 처리상태(미착수·갱신진행·갱신안함)를 바꾼다. 갱신안함이면 관련 알림을 닫도록 이벤트를 보낸다.
+     * 갱신완료는 [갱신] 등록으로만 처리되므로 여기서 지정하면 400, 이미 갱신된 이력 건을 바꾸려 하면 409로 막는다.
+     */
     @Transactional
     public CertificationItem changeRenewalStatus(Long id, RenewalStatus status) {
         Certification x = find(id);
+        if (status == RenewalStatus.DONE) {
+            throw BusinessException.invalid("renewalStatus", "갱신완료는 [갱신]으로 새 인증을 등록해야 처리됩니다.");
+        }
+        if (!x.isActive()) {
+            throw new BusinessException(HttpStatus.CONFLICT, "이미 갱신된 인증은 처리상태를 바꿀 수 없습니다.");
+        }
         x.changeRenewalStatus(status);
         if (status.closed()) {
             events.publishEvent(new RenewalClosedEvent(TargetType.CERTIFICATION, id));

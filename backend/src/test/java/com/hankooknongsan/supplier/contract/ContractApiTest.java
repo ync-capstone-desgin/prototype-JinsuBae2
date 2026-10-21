@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -125,6 +126,27 @@ class ContractApiTest {
                 .andExpect(jsonPath("$.content[*].contractNumber", contains("CT-NEW")));
         mvc.perform(get("/api/contracts").param("supplierId", supplierA.toString()).param("includeInactive", "true"))
                 .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    /** 처리상태 API로는 갱신완료를 지정할 수 없고, 이미 갱신된 이력 계약의 처리상태도 바꿀 수 없다. (갱신 현황판 끌어 놓기 보호) */
+    @Test
+    void 갱신완료_직접_지정과_이력_계약_상태_변경을_막는다() throws Exception {
+        long id = idOf(postContract(supplierA, "CT-ST", "2025-01-01", "2025-12-31"));
+        mvc.perform(patch("/api/contracts/" + id + "/renewal-status").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"renewalStatus\":\"DONE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("renewalStatus"));
+        mvc.perform(patch("/api/contracts/" + id + "/renewal-status").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"renewalStatus\":\"IN_PROGRESS\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/contracts/" + id + "/renew").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"supplierId":%d,"contractNumber":"CT-ST2","title":"갱신 계약","startDate":"2026-01-01","endDate":"2026-12-31"}"""
+                        .formatted(supplierA)))
+                .andExpect(status().isCreated());
+        mvc.perform(patch("/api/contracts/" + id + "/renewal-status").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"renewalStatus\":\"NONE\"}"))
+                .andExpect(status().isConflict());
     }
 
     /** 인증도 만료일이 발급일보다 빠르면 저장하지 않는다. */

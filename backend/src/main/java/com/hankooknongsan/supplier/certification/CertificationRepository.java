@@ -60,6 +60,19 @@ public interface CertificationRepository extends JpaRepository<Certification, Lo
     List<Certification> findWithoutExpiry(@Param("ownerId") Long ownerId,
                                           @Param("renewalStatus") RenewalStatus renewalStatus);
 
+    /**
+     * 갱신되어 이력이 된(비활성·갱신완료) 인증 중 만료일이 기간(from ~ until) 안에 있는 것을 조회한다. (갱신 현황판의 완료 칸용)
+     */
+    @EntityGraph(attributePaths = {"supplier", "owner"})
+    @Query("""
+            select x from Certification x
+            where x.active = false and x.renewalStatus = com.hankooknongsan.supplier.common.RenewalStatus.DONE
+              and x.expiryDate between :from and :until
+              and (:ownerId is null or x.owner.id = :ownerId)
+            """)
+    List<Certification> findRenewed(@Param("from") LocalDate from, @Param("until") LocalDate until,
+                                     @Param("ownerId") Long ownerId);
+
     /** 유효 인증 수를 센다. (대시보드용) */
     long countByActiveTrue();
 

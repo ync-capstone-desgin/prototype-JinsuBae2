@@ -13,7 +13,9 @@ import { TabsProvider } from './app/TabsContext'
 import { theme } from './app/theme'
 import { CertificationListPage } from './features/certification/CertificationListPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
+import { ExpiryCalendarPage } from './features/expiry/ExpiryCalendarPage'
 import { ExpiryListPage } from './features/expiry/ExpiryListPage'
+import { RenewalBoardPage } from './features/expiry/RenewalBoardPage'
 import { NotificationInboxPage } from './features/notification/NotificationInboxPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { ContractListPage } from './features/contract/ContractListPage'
@@ -63,6 +65,8 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="/contracts" element={<ContractListPage />} />
                   <Route path="/certifications" element={<CertificationListPage />} />
                   <Route path="/expiries" element={<ExpiryListPage />} />
+                  <Route path="/expiry-calendar" element={<ExpiryCalendarPage />} />
+                  <Route path="/renewal-board" element={<RenewalBoardPage />} />
                   <Route path="/notifications" element={<NotificationInboxPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

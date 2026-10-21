@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { App, Badge, Button, Flex, Segmented, Select, Tag, Typography } from 'antd'
 import { DownloadOutlined, SyncOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ColDef } from 'ag-grid-community'
 import { useNavigate, useSearchParams } from 'react-router'
-import { changeCertificationRenewalStatus, fetchCertification } from '../../api/certifications'
-import { toProblem } from '../../api/client'
-import { changeContractRenewalStatus, fetchContract } from '../../api/contracts'
 import { fetchDashboard } from '../../api/dashboard'
 import { downloadExpiryExcel, findExpiries } from '../../api/expiries'
-import type {
-  CertificationItem, ContractItem, ExpiryItem, ExpiryPeriod, ExpirySearch, RenewalStatus, TargetType,
-} from '../../api/types'
+import type { ExpiryItem, ExpiryPeriod, ExpirySearch, TargetType } from '../../api/types'
 import { useAuth } from '../../app/AuthContext'
 import { DataGrid } from '../../components/DataGrid'
 import { DdayBadge } from '../../components/DdayBadge'
@@ -20,8 +15,7 @@ import { SearchField, SearchPanel } from '../../components/SearchPanel'
 import { useCodes } from '../../hooks/useCodes'
 import { useOwnerOptions } from '../../hooks/useOptions'
 import { usePersistedState } from '../../hooks/usePersistedState'
-import { CertificationFormModal } from '../certification/CertificationFormModal'
-import { ContractFormModal } from '../contract/ContractFormModal'
+import { useExpiryActions } from './useExpiryActions'
 
 /** 기간 칩 순서와, 대시보드 요약에서 각 칩의 건수를 꺼내는 방법 */
 const PERIODS: { value: ExpiryPeriod; label: string; count: (s: { expired: number; within7: number; within30: number; within90: number; unknown: number }) => number; color: string }[] = [
@@ -50,8 +44,7 @@ export function ExpiryListPage() {
   const ownerOptions = useOwnerOptions()
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = usePersistedState<ExpirySearch>('expiry.search', { period: 'D30' })
-  const [renewContract, setRenewContract] = useState<ContractItem>()
-  const [renewCert, setRenewCert] = useState<CertificationItem>()
+  const { changeStatus: handleStatusChange, renew: handleRenew, modals } = useExpiryActions()
 
   // 대시보드에서 넘어온 조건(?period=D7&mine=1)을 적용하고 주소는 깨끗하게 되돌린다.
   useEffect(() => {
@@ -63,36 +56,6 @@ export function ExpiryListPage() {
 
   const { data, isFetching } = useQuery({ queryKey: ['expiries', search], queryFn: () => findExpiries(search) })
   const { data: summary } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
-
-  /** 처리상태를 바꾸고 만료 목록·대시보드·계약·인증 목록을 새로 고친다. */
-  const handleStatusChange = async (row: ExpiryItem, status: RenewalStatus) => {
-    try {
-      if (row.targetType === 'CONTRACT') await changeContractRenewalStatus(row.targetId, status)
-      else await changeCertificationRenewalStatus(row.targetId, status)
-      await Promise.all(['expiries', 'dashboard', 'contracts', 'certifications'].map((k) => queryClient.invalidateQueries({ queryKey: [k] })))
-      message.success(`${row.supplierName} · ${row.name} 처리상태를 변경했습니다.`)
-    } catch (e) {
-      message.error(toProblem(e).detail)
-    }
-  }
-
-  /** [갱신 등록]: 원본 계약·인증을 불러와 갱신 모달을 연다. */
-  const handleRenew = async (row: ExpiryItem) => {
-    try {
-      if (row.targetType === 'CONTRACT') setRenewContract(await fetchContract(row.targetId))
-      else setRenewCert(await fetchCertification(row.targetId))
-    } catch (e) {
-      message.error(toProblem(e).detail)
-    }
-  }
-
-  /** 갱신 모달을 닫고, 목록이 바뀌었을 수 있으니 만료 목록·대시보드를 새로 고친다. */
-  const closeRenew = () => {
-    setRenewContract(undefined)
-    setRenewCert(undefined)
-    queryClient.invalidateQueries({ queryKey: ['expiries'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-  }
 
   /** 그리드 컬럼 정의. 맨 앞에 D-day 배지를 두어 급한 정도가 먼저 보이게 한다. */
   const columns = useMemo<ColDef<ExpiryItem>[]>(() => [
@@ -190,8 +153,7 @@ export function ExpiryListPage() {
 
       <DataGrid rows={data} columns={columns} loading={isFetching && !data} rowId={rowKey} />
 
-      <ContractFormModal open={!!renewContract} mode="renew" contract={renewContract} onClose={closeRenew} />
-      <CertificationFormModal open={!!renewCert} mode="renew" certification={renewCert} onClose={closeRenew} />
+      {modals}
     </>
   )
 }

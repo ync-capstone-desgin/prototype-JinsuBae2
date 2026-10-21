@@ -20,3 +20,27 @@ export async function findExpiries(search: ExpirySearch): Promise<ExpiryItem[]> 
 export async function downloadExpiryExcel(search: ExpirySearch): Promise<void> {
   await downloadFile('/expiries/excel', toParams(search))
 }
+
+/** 만료 캘린더 조회 조건: 달력에 보이는 기간과 거르기 조건 */
+export interface ExpiryCalendarSearch {
+  /** 시작일 (YYYY-MM-DD, 포함) */
+  from: string
+  /** 종료일 (YYYY-MM-DD, 포함). 시작일부터 최대 62일 */
+  to: string
+  targetType?: ExpirySearch['targetType']
+  ownerId?: number
+}
+
+/** 기간 안에 만료되는 계약·인증을 날짜순으로 조회한다. (만료 캘린더용) */
+export async function findExpiryCalendar(search: ExpiryCalendarSearch): Promise<ExpiryItem[]> {
+  return (await api.get('/expiries/calendar', {
+    params: { from: search.from, to: search.to, targetType: search.targetType || undefined, ownerId: search.ownerId },
+  })).data
+}
+
+/** 갱신 현황판 카드를 조회한다. 조치 대상(만료 + 90일 이내)과 최근 30일 안에 갱신 완료된 건이 급한 순으로 온다. */
+export async function findRenewalBoard(search: Pick<ExpirySearch, 'targetType' | 'ownerId'>): Promise<ExpiryItem[]> {
+  return (await api.get('/expiries/board', {
+    params: { targetType: search.targetType || undefined, ownerId: search.ownerId },
+  })).data
+}
